@@ -1,0 +1,187 @@
+#pragma kernel WaveKernel
+#pragma kernel MultiWaveKernel
+#pragma kernel RippleKernel
+#pragma kernel StaticSphereKernel
+#pragma kernel ScalingSphereKernel
+#pragma kernel VerticalBandSphereKernel
+#pragma kernel HorizontalBandSphereKernel
+#pragma kernel TwistingBandSphereKernel
+#pragma kernel StaticTorusKernel
+#pragma kernel RotatingTorusKernel
+
+#define PI 3.14159265358979323846
+
+RWStructuredBuffer<float3> _Positions;  // To store a position, we need access to the positions buffer (RW = Read/Write)
+uint _Resolution;                       // To store the position of a point, we need to assign an index to it, based on the thread identifier 
+float _Step;
+float _Time;
+
+// Sets a position given an identifier and the position to set
+void SetPosition(uint3 id, float3 position)
+{
+    // Each group calculates a grid of 8x8 points; if the graph's resolution isn't a multiple of 8,
+    // then we'll end up with one row and one column of groups that will calculate somep oints that are out of bounds.
+    // Invalid positiosn can be avoided by storing them only if both the X and Y identifier 
+    // components are less than the resolution
+    if (id.x < _Resolution && id.y < _Resolution)
+    {
+        _Positions[id.x + id.y * _Resolution] = position; // Store 2D daya sequentially in a 1D array
+    }
+}
+
+// Takes the thread identifier and returns the UV coordinates
+float2 GetUV(uint3 id)
+{
+    return (id.xy + 0.5) * _Step - 1.0;
+}
+
+float3 Wave(float u, float v, float t)
+{
+    float3 p;
+    
+    p.x = u;
+    p.y = sin(PI * (u + v + t));
+    p.z = v;
+    
+    return p;
+}
+
+float3 MultiWave(float u, float v, float t)
+{
+    float3 p;
+    p.x = u;
+    p.y = sin(PI * (u + 0.5 * t));
+    p.y += 0.5 * sin(2.0 * PI * (v + t));
+    p.y += sin(PI * (u + v + 0.25 * t));
+    p.y *= 1.0 / 2.5;
+    p.z = v;
+    return p;
+}
+
+float3 Ripple(float u, float v, float t)
+{
+    float d = sqrt(u * u + v * v);
+    float3 p;
+    p.x = u;
+    p.y = sin(PI * (4.0 * d - t));
+    p.y /= 1.0 + 10.0 * d;
+    p.z = v;
+    return p;
+}
+
+float3 StaticSphere(float u, float v, float t)
+{
+    float r = cos(0.5f * PI * v);
+
+    float3 p;
+    
+    p.x = r * sin(PI * u);
+    p.y = sin(PI * 0.5f * v);
+    p.z = r * cos(PI * u);
+
+    return p;
+}
+
+float3 ScalingSphere(float u, float v, float t)
+{
+    float r = 0.5f + 0.5f * sin(PI * t);
+    float s = r * cos(0.5f * PI * v);
+
+    float3 p;
+
+    p.x = s * sin(PI * u);
+    p.y = r * sin(0.5f * PI * v);
+    p.z = s * cos(PI * u);
+
+    return p;
+}
+
+float3 VerticalBandSphere(float u, float v, float t)
+{
+    float r = 0.9f + 0.1f * sin(8f * PI * u);
+    float s = r * cos(0.5f * PI * v);
+
+    float3 p;
+
+    p.x = s * sin(PI * u);
+    p.y = r * sin(0.5f * PI * v);
+    p.z = s * cos(PI * u);
+
+    return p;
+}
+
+float3 HorizontalBandSphere(float u, float v, float t)
+{
+    float r = 0.9f + 0.1f * sin(8f * PI * v);
+    float s = r * cos(0.5f * PI * v);
+
+    float3 p;
+
+    p.x = s * sin(PI * u);
+    p.y = r * sin(0.5f * PI * v);
+    p.z = s * cos(PI * u);
+
+    return p;
+}
+
+float3 TwistingBandSphere(float u, float v, float t)
+{
+    float r = 0.9f + 0.1f * sin(PI * (6f * u + 4f * v + t));
+    float s = r * cos(0.5f * PI * v);
+
+    float3 p;
+
+    p.x = s * sin(PI * u);
+    p.y = r * sin(PI * 0.5f * v);
+    p.z = s * cos(PI * u);
+
+    return p;
+}
+
+float3 StaticTorus(float u, float v, float y)
+{
+    float r1 = 0.75f;
+    float r2 = 0.25f;
+    float s = 0.5f + r1 + r2 * cos(PI * v);
+
+    float3 p;
+
+    p.x = s * sin(PI * u);
+    p.y = r2 * sin(PI * v);
+    p.z = s * cos(PI * u);
+
+    return p;
+}
+
+float3 RotatingTorus(float u, float v, float t)
+{
+    float r1 = 0.7f + 0.1f * sin(PI * (6f * u + 0.5f * t));
+    float r2 = 0.15f + 0.05f * sin(PI * (8f * u + 4f * v + 2f * t));
+    float s = 0.5f + r1 + r2 * cos(PI * v);
+
+    float3 p;
+
+    p.x = s * sin(PI * u);
+    p.y = r2 * sin(PI * v);
+    p.z = s * cos(PI * u);
+
+    return p;
+}
+
+#define KERNEL_FUNCTION(function)  \
+[numthreads(8, 8, 1)] \
+void function##Kernel(uint3 id : SV_DispatchThreadID) { \
+    float2 uv = GetUV(id); \
+    SetPosition(id, function(uv.x, uv.y, _Time)); \
+}
+
+KERNEL_FUNCTION(Wave)
+KERNEL_FUNCTION(MultiWave)
+KERNEL_FUNCTION(Ripple)
+KERNEL_FUNCTION(StaticSphere)
+KERNEL_FUNCTION(ScalingSphere)
+KERNEL_FUNCTION(VerticalBandSphere)
+KERNEL_FUNCTION(HorizontalBandSphere)
+KERNEL_FUNCTION(TwistingBandSphere)
+KERNEL_FUNCTION(StaticTorus)
+KERNEL_FUNCTION(RotatingTorus)

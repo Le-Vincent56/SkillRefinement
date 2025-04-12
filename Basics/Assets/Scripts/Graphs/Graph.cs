@@ -3,20 +3,20 @@ using UnityEngine;
 
 namespace Basics.Graphs
 {
+    public enum TransitionMode
+    {
+        Cycle,
+        Random
+    }
+
     public class Graph : MonoBehaviour
     {
-        public enum TransitionMode
-        {
-            Cycle,
-            Random
-        }
-
         [Header("References")]
         [SerializeField] private Transform pointPrefab;
         private PointPool pointPool;
 
         [Header("Fields")]
-        [SerializeField, Range(10, 100)] private int resolution;
+        [SerializeField, Range(10, 200)] private int resolution;
         [SerializeField] private FunctionLibrary.FunctionName function;
         private FunctionLibrary.FunctionName transitionFunction;
 

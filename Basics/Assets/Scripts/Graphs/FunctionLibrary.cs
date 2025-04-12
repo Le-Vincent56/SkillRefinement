@@ -135,7 +135,7 @@ namespace Basics.Graphs
             // sphere is created by stacking circles with different radii)
             p.x = r * Sin(PI * u);
             p.y = Sin(PI * 0.5f * v);
-            p.z = r * Sin(PI * u);
+            p.z = r * Cos(PI * u);
 
             return p;
         }
